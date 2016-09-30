@@ -13,7 +13,6 @@ import android.text.Html;
 import android.text.SpannableString;
 import android.util.Log;
 import org.mozilla.javascript.*;
-import org.mozilla.javascript.annotations.JSStaticFunction;
 
 import java.io.File;
 import java.io.FileReader;
@@ -21,7 +20,6 @@ import java.io.FileReader;
 public class KakaotalkListener extends NotificationListenerService {
     private static Function responder;
     private static ScriptableObject execScope;
-    private static Notification.Action lastSession;
     private static android.content.Context execContext;
 
     @Override
@@ -38,8 +36,7 @@ public class KakaotalkListener extends NotificationListenerService {
                             act.title.toString().toLowerCase().contains("Reply") ||
                             act.title.toString().toLowerCase().contains("답장")) {
                         execContext = getApplicationContext();
-                        lastSession = act;
-                        callResponder(sbn.getNotification().extras.getString("android.title"), sbn.getNotification().extras.get("android.text"));
+                        callResponder(sbn.getNotification().extras.getString("android.title"), sbn.getNotification().extras.get("android.text"), act);
                     }
         }
     }
@@ -54,7 +51,6 @@ public class KakaotalkListener extends NotificationListenerService {
             parseContext.setOptimizationLevel(-1);
             Script script_real = parseContext.compileReader(new FileReader(script), script.getName(), 0, null);
             ScriptableObject scope = parseContext.initStandardObjects();
-            ScriptableObject.defineClass(scope, Kakaotalk.class);
             execScope = scope;
             script_real.exec(parseContext, scope);
             responder = (Function) scope.get("response", scope);
@@ -66,7 +62,7 @@ public class KakaotalkListener extends NotificationListenerService {
         }
     }
 
-    private void callResponder(String room, Object msg) {
+    private void callResponder(String room, Object msg, Notification.Action session) {
         if (responder == null || execScope == null) initializeScript();
         Context parseContext = Context.enter();
         parseContext.setOptimizationLevel(-1);
@@ -78,34 +74,34 @@ public class KakaotalkListener extends NotificationListenerService {
             _msg = (String) msg;
         } else {
             String html = Html.toHtml((SpannableString) msg);
-            Log.d("parser", html);
             sender = Html.fromHtml(html.split("<b>")[1].split("</b>")[0]).toString();
             _msg = Html.fromHtml(html.split("</b>")[1].split("</p>")[0].substring(1)).toString();
         }
 
-        responder.call(parseContext, execScope, execScope, new Object[] { room, _msg, sender});
+        try {
+            responder.call(parseContext, execScope, execScope, new Object[] { room, _msg, sender, msg instanceof SpannableString, new SessionCacheReplier(session) });
+        } catch (Throwable e) {
+            Log.e("parser", "?", e);
+        }
     }
 
-    public static class Kakaotalk extends ScriptableObject {
-        public Kakaotalk() {
+    public static class SessionCacheReplier {
+        private Notification.Action session = null;
+
+        private SessionCacheReplier(Notification.Action session) {
             super();
+            this.session = session;
         }
 
-        @Override
-        public String getClassName() {
-            return "Kakaotalk";
-        }
-
-        @JSStaticFunction
-        public static void replyLast(String value) {
-            if (lastSession == null) return;
+        public void reply(String value) {
+            if (session == null) return;
             Intent sendIntent = new Intent();
             Bundle msg = new Bundle();
-            for (RemoteInput inputable : lastSession.getRemoteInputs()) msg.putCharSequence(inputable.getResultKey(), value);
-            RemoteInput.addResultsToIntent(lastSession.getRemoteInputs(), sendIntent, msg);
+            for (RemoteInput inputable : session.getRemoteInputs()) msg.putCharSequence(inputable.getResultKey(), value);
+            RemoteInput.addResultsToIntent(session.getRemoteInputs(), sendIntent, msg);
 
             try {
-                lastSession.actionIntent.send(execContext, 0, sendIntent);
+                session.actionIntent.send(execContext, 0, sendIntent);
             } catch (PendingIntent.CanceledException e) {
 
             }
