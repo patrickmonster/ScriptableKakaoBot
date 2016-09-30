@@ -78,15 +78,11 @@ public class KakaotalkListener extends NotificationListenerService {
             _msg = Html.fromHtml(html.split("</b>")[1].split("</p>")[0].substring(1)).toString();
         }
 
-<<<<<<< HEAD
         try {
             responder.call(parseContext, execScope, execScope, new Object[] { room, _msg, sender, msg instanceof SpannableString, new SessionCacheReplier(session) });
         } catch (Throwable e) {
             Log.e("parser", "?", e);
         }
-=======
-        responder.call(parseContext, execScope, execScope, new Object[] { room, _msg, sender });
->>>>>>> origin/master
     }
 
     public static class SessionCacheReplier {
