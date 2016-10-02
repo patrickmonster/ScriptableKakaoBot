@@ -5,7 +5,7 @@
 2) response.js를 /sdcard-directory/kbot/ 에 생성합니다.<br>
 3) response 함수를 정의합니다.<br>
 ```js
-function response(room, msg, sender, isGroupChat, repiler) {
+function response(room, msg, sender, isGroupChat, replier) {
   /* room - 방 이름
      msg - 메세지 내용
      sender - 발신자 이름
