@@ -2,3 +2,6 @@
 local.properties
 .idea/
 build
+app/app-debug.apk.zip
+app/app-release.apk
+app/src/androidTest/

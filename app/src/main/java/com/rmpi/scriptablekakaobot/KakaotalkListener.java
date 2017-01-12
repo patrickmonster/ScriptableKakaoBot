@@ -12,6 +12,7 @@ import android.service.notification.StatusBarNotification;
 import android.text.Html;
 import android.text.SpannableString;
 import android.util.Log;
+import com.faendir.rhino_android.RhinoAndroidHelper;
 import org.mozilla.javascript.*;
 
 import java.io.File;
@@ -44,10 +45,12 @@ public class KakaotalkListener extends NotificationListenerService {
     static void initializeScript() {
         try {
             File scriptDir = new File(Environment.getExternalStorageDirectory() + File.separator + "kbot");
-            if (!scriptDir.exists()) scriptDir.mkdirs();
+            if (!scriptDir.exists())
+                scriptDir.mkdirs();
             File script = new File(scriptDir, "response.js");
-            if (!script.exists()) script.createNewFile();
-            Context parseContext = org.mozilla.javascript.Context.enter();
+            if (!script.exists())
+                script.createNewFile();
+            Context parseContext = RhinoAndroidHelper.prepareContext();
             parseContext.setOptimizationLevel(-1);
             Script script_real = parseContext.compileReader(new FileReader(script), script.getName(), 0, null);
             ScriptableObject scope = parseContext.initStandardObjects();
@@ -63,8 +66,9 @@ public class KakaotalkListener extends NotificationListenerService {
     }
 
     private void callResponder(String room, Object msg, Notification.Action session) {
-        if (responder == null || execScope == null) initializeScript();
-        Context parseContext = Context.enter();
+        if (responder == null || execScope == null)
+            initializeScript();
+        Context parseContext = RhinoAndroidHelper.prepareContext();
         parseContext.setOptimizationLevel(-1);
         String sender;
         String _msg;
@@ -83,6 +87,8 @@ public class KakaotalkListener extends NotificationListenerService {
         } catch (Throwable e) {
             Log.e("parser", "?", e);
         }
+
+        Context.exit();
     }
 
     public static class SessionCacheReplier {
